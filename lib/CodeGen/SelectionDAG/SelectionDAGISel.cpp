@@ -89,6 +89,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Dependency.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -465,6 +466,9 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   if (FuncInfo->SplitCSR)
     // This performs initialization so lowering for SplitCSR will be correct.
     TLI->initializeSplitCSR(EntryMBB);
+
+  FunctionPass *c = createInterproceduralDependencyCheckPass();
+  c->runOnFunction(const_cast<Function&>(Fn));
 
   SelectAllBasicBlocks(Fn);
   if (FastISelFailed && EnableFastISelFallbackReport) {

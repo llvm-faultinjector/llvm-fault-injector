@@ -108,8 +108,8 @@ void DebugLoc::print(raw_ostream &OS) const {
     return;
 
   // Print source line info.
-  auto *Scope = cast<DIScope>(getScope());
-  OS << Scope->getFilename();
+  //auto *Scope = cast<DIScope>(getScope());
+  //OS << Scope->getFilename();
   OS << ':' << getLine();
   if (getCol() != 0)
     OS << ':' << getCol();
