@@ -100,3 +100,184 @@ Like this, when marking with extern function, the kind of marking of argument of
 The extern function used is removed from llc processing via `eraseFromParent`.
 
 ***
+
+
+## 2. Dependency Pass
+This is the pass to mark the dependency of the variable in the Instruction. It is executed once for each function just before the SDNode generation, not the optimization step.
+This [link](https://github.com/rollrat/custom-llvm2/commit/583681378edf38a3d837135f9815c621c3021590#diff-825e43e63961002d7541aec6d4d4f7a4R468)
+Indicates the above procedure. You can know that `c-> runOnFunction` immediately precedes the creation of the SDNode by` SelectAllBasicBlocks`.
+
+The source of the following links is a full source code of Dependency Pass.
+```
+https://github.com/rollrat/custom-llvm2/blob/master/include/llvm/DependencyInfo.h
+https://github.com/rollrat/custom-llvm2/blob/master/lib/Transforms/Scalar/Dependency.cpp
+```
+
+The following link is the git link that developed the pass before creating the custom-llvm repository.
+```
+https://github.com/rollrat/llvm-control-pass
+```
+
+### 2.1. Instruction Marking Type
+The following 4 items are marking type on Dependency Pass.
+```
+Annotated : Instruction to be substituted by StoreInst.
+Perpect : A fully connected Instruction.
+Dominated : Includes Perpect, and includes instructions to change the branch associated with the parent BasicBlock.
+Maybe : Dominated, and includes all instructions that change the branch of this BB with respect to all connected BasicBlocks.
+```
+`Annotated` >> `Perpect` >> `Dominated` >> `Maybe` Priority is determined in that order.
+For example, `Instruction` with `Annotated` marking includes `Maybe` marking.
+
+### 2.2. Branch Map
+Branch Map is Control-Flow-Graph of Function BasicBlock. This is used to distinguish between Dominated and Maybe.
+Look up the Branch Map, use `Dominated` if one parent BasicBlock is one, or use `Maybe` if more than one. 
+![Image](cfg-type.png)
+
+### 2.3. Function dependency
+An `Annotated` variable can be changed inside a called function if it is a pointer to a function's arguments.
+Also, if the return value of a function is `Dominated` by a variable that has been `Annotated`, the arguments of that function can affect the return value.
+To exploring these two things, we use the following classes to examine the call function.
+```
+FunctionReturnDependencyChecker: Checks which function arguments affect the return value.
+FunctionArgumentDependencyCheck: Checks which function arguments affect other function arguments.
+```
+If you need to check for function dependencies, use `run` function in` DependencyChecker` to check only once per function.
+This checking process is independent of whether or not `Annotate` is present.
+
+### 2.4. Marking decision
+The followings are the classes and functions used for `Instruction` marking.
+``` c++
+  class FunctionReturnDependencyChecker;
+  class FunctionArgumentDependencyCheck
+  class BottomUpDependencyChecker;
+```
+Only `BottomUpDependencyChecker` in the above class has `Instruction` marking privilege.
+```
+runPerpectBottomUp: Used on Perpect marking. (This function is called once per `Annotated` variable.)
+runBottomUp: Used on Dominated, Maybe marking.
+runSearch: Checks for changes in value by Store and function dependency. Used for `Annotated` marking with limited conditions.
+  (이 함수는 runBottomUp을 조건적으로 호출합니다.)
+processBranches: Use the Branch Map to conditionally call runSearch, runBottomUp.
+```
+![Image](marking.png)
+
+#### 2.4.1. runBottomUp Function
+`Instruction` through `runBottomUp` examines `Value` related to `Instruction` obtained through `getOperand`.
+`Dominated`, `Maybe` is marked, but marking distinction is not done in this function. Marking distinction through `processBranches`
+Is done.
+``` vb.net
+runBottomUp [Instruction: I, bool: P]
+  if (P == true)
+    I := Dominated
+  else
+    I := Maybe
+
+  for each Operand in I.getOperand
+    runBottomUp(Operand, P)
+    runSearch(Operand, P)
+
+  processBranches(I)
+```
+This iteration is repeated until the operand is not `Instruction`.
+If `Instruction` is` CallInst`, only function arguments with `ReturnDependency` are checked.
+
+#### 2.4.2. runSearch Function
+`runSearch` checks for `Instruction` which is used as argument to `StoreInst` or` CallInst`.
+The `ROOT : bool` variable for `Annotated` marking is used, and this variable is only `true` in the call to marking `entry`.
+``` vb.net
+runSearch [Instruction: I, bool: P, bool: ROOT (= false)]
+  for each Instruction in Function.BasicBlock
+    if (type(Instruction) :: StoreInst)
+      if (StoreInst.Pointer == I)
+        if (ROOT == true)
+           I := Annotated
+           runPerpectBottomUp (StoreInst.Value)
+        runBottomUp(StoreInst.Value, P && ROOT)
+        runSearch(StoreInst.Value, P && ROOT)
+
+    else if (type(Instruction) :: CallInst)
+      for each Oprand in FunctionArgumentDependency(CallInst.CalledFunction, Instruction.getOperand)
+        runBottomUp(Operand, P && ROOT)
+        runSearch(Operand, P && ROOT)
+
+  processBranches(I)
+```
+`P && ROOT` is exists, because we can not determine `Dominated`, `Maybe` at runSearch level.
+However, if `ROOT` is `true`, `P` is also` true` and subordinate `Instruction` is marked as `Dominated`.
+
+#### 2.4.3. processBranches Function
+Using Branch Map, we tracks the Compare element that determines the branch.
+If the branch is not conditional, the compare element trace is skipped.
+``` vb.net
+processBranches [Instruction: I]
+  processBlock(getNodeFromInstruction(I))
+
+processBlock [BlockNode: BN]
+  if (BN.getFromNodes.Size == 1)
+	is_perpect := true
+  else
+    is_perepct := false
+
+  for each BlockNode in BN.getFromNodes
+    if (BlockNode is Conditional)
+      runBottomUp(BlockNode.getCondition, is_perpect)
+      runSearch(BlockNode.getCondition, is_perpect)
+
+    processBlock(BlockNode)
+```
+The `BlockNode` once executed with `processBlock` will not be executed again.
+
+#### 2.4.4. runPerpectBottomUp Function
+This function recursively traverses each Operand in `Instruction` to mark the `Perpect`.
+``` vb.net
+runPerpectBottomUp [Instruction: I]
+  I := Perpect
+
+  for each Operand in I.getOperand
+    runPerpectBottomUp(Operand)
+```
+
+***
+
+## 3. SelectionDAG Traking
+When the SelectionDAG is created, the `Instruction` Dependency information is passed to the DAGNode.
+The following procedure shows the code that the PassManager calls as it creates the SelectionDAG.
+```
+Reference: https://github.com/draperlaboratory/fracture/wiki/How-An-IR-Statement-Becomes-An-Instruction
+
+FunctionPass
+    -> MachineFunctionPass
+        -> SelelctionDAGISel
+            -> TargetDAGToDAGISel
+
+include/llvm/Pass.h
+-> virtual bool runOnFunction(Function &F) = 0;
+
+lib/CodeGen/MachineFunctionPass.cpp
+-> runOnMachineFunction(MF)
+
+lib/CodeGen/SelectionDAG/SelectionDAGISel.cpp
+-> bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf)
+The runOnMachineFunction function runs Dependency Checking before the SelectAllBasicBlocks function is executed.
+
+lib/CodeGen/SelectionDAG/SelectionDAGISel.cpp
+-> void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn)
+The SelectAllBasicBlocks function calls `FastISel` and` SelectBasicBlock`.
+`FastISel` is an InstructionSelection for debugging that runs only on -O0,
+`SelectBasicBlocks` generates a SelectionDAGNode by executing `DoInstructionSelection`.
+
+lib/CodeGen/SelectionDAG/SelectionDAGISel.cpp
+-> void SelectionDAGISel::CodeGenAndEmitDAG() {
+In the CodeGenAndEmitDAG function, DAGCombine, DAGLegalize is executed.
+Instruction Schedule is also executed.
+```
+
+***
+
+## 4. 버그
+현재 버전은 다음과 같은 함수/기능에 대해선 Dependency Pass가 실행되지 않거나,
+오류가 발생할 수 있습니다.
+```
+* 가변인자를 가진 함수의 ArgumentDependency를 확인할 수 없습니다.
+```
