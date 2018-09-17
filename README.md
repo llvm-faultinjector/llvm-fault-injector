@@ -1,5 +1,7 @@
 # Custom-LLVM for Interprocedural Dependencies Checking on RISC-V Hardware Register.
 
+한국어 : https://github.com/rollrat/custom-llvm2/blob/master/README.md
+
 This custom-llvm has been forked to determine the variable dependencies (Dominated, Maybe) 
 of the specific register specified by llvm.annotation in the IR step. This project can help 
 you to output variable dependencies of the IR level from an object file(Not yet). See Commits
