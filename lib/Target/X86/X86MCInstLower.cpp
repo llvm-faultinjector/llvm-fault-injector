@@ -44,6 +44,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCSymbolELF.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/Transforms/Utils/Dependency.h"
 
 using namespace llvm;
 
@@ -1588,6 +1589,13 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
   X86MCInstLower MCInstLowering(*MF, *this);
   const X86RegisterInfo *RI =
       MF->getSubtarget<X86Subtarget>().getRegisterInfo();
+
+  if (MI->getDebugLoc()) {
+    DependencyInstrInfoManager *mgr = getInfoManager(MI->getDebugLoc()->getLine()); 
+    mgr->doFolding();
+    for (auto DI : *mgr)
+      OutStreamer->AddComment(DI->getInfo());
+  }
 
   // Add a comment about EVEX-2-VEX compression for AVX-512 instrs that
   // are compressed from EVEX encoding to VEX encoding.
