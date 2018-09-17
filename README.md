@@ -11,7 +11,7 @@ and etcs.
 ***
 
 ## 1. Representation in the IR stage
-Please read the following article while referring to b.cpp and b.ll. [Test Folder](test/Dependency%20Test) 
+Please read the following article while referring to b.cpp and b.ll. [Test Folder](https://github.com/rollrat/custom-llvm2/tree/master/test/Dependency%20Test) 
 
 ### 1.1. Variable marking using llvm.annotation
 `__attribute __ ((annotate (" message ")))` is an annotation feature provided by clang / llvm. This function allows you to know the annotated variables until the final stage of IR. You can also see the contents of `" message "` in an annotated variable.
