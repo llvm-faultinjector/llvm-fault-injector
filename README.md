@@ -134,7 +134,7 @@ For example, `Instruction` with `Annotated` marking includes `Maybe` marking.
 ### 2.2. Branch Map
 Branch Map is Control-Flow-Graph of Function BasicBlock. This is used to distinguish between Dominated and Maybe.
 Look up the Branch Map, use `Dominated` if one parent BasicBlock is one, or use `Maybe` if more than one. 
-![Image](cfg-type.png)
+![Image](https://raw.githubusercontent.com/rollrat/custom-llvm2/master/cfg-type.png)
 
 ### 2.3. Function dependency
 An `Annotated` variable can be changed inside a called function if it is a pointer to a function's arguments.
@@ -159,10 +159,10 @@ Only `BottomUpDependencyChecker` in the above class has `Instruction` marking pr
 runPerpectBottomUp: Used on Perpect marking. (This function is called once per `Annotated` variable.)
 runBottomUp: Used on Dominated, Maybe marking.
 runSearch: Checks for changes in value by Store and function dependency. Used for `Annotated` marking with limited conditions.
-  (이 함수는 runBottomUp을 조건적으로 호출합니다.)
+  (This function conditionally calls runBottomUp.)
 processBranches: Use the Branch Map to conditionally call runSearch, runBottomUp.
 ```
-![Image](marking.png)
+![Image](https://raw.githubusercontent.com/rollrat/custom-llvm2/master/marking.png)
 
 #### 2.4.1. runBottomUp Function
 `Instruction` through `runBottomUp` examines `Value` related to `Instruction` obtained through `getOperand`.
@@ -277,9 +277,8 @@ Instruction Schedule is also executed.
 
 ***
 
-## 4. 버그
-현재 버전은 다음과 같은 함수/기능에 대해선 Dependency Pass가 실행되지 않거나,
-오류가 발생할 수 있습니다.
+## 4. Bugs
+The current version may not run the Dependency Pass for the following functions / functions, or an error may occur.
 ```
-* 가변인자를 가진 함수의 ArgumentDependency를 확인할 수 없습니다.
+* Can not determine the ArgumentDependency of the function with the variable argument.
 ```
