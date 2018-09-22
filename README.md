@@ -1,4 +1,4 @@
-# Custom-LLVM for Interprocedural Dependencies Checking on RISC-V Hardware Register.
+# Custom-LLVM for Interprocedural Dependencies Checking on Hardware Register.
 
 한국어 : https://github.com/rollrat/custom-llvm2/blob/master/README.md
 
