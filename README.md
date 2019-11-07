@@ -4,6 +4,8 @@ This custom-llvm has been forked for implementing fault-injector.
 
 ## Sub-Links
 
-[Dependency Checker](https://github.com/rollrat/runnable-llvm/DependencyChecker.md)
+[Dependency Checker](https://github.com/rollrat/runnable-llvm/blob/master/DependencyChecker.md)
 
-[Fault Injection](https://github.com/rollrat/runnable-llvm/FaultInjector.md)
+[Fault Injection](https://github.com/rollrat/runnable-llvm/blob/master/FaultInjector.md)
+
+[Sample Codes](https://github.com/rollrat/runnable-llvm/tree/master/1samples)
