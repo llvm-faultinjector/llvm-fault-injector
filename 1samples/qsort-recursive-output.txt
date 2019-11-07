@@ -1,0 +1,32 @@
+Function - qsort
+    Annotated Variable List :
+        - Annotated : (message: __marking_faultinject_intptr)
+
+    Annotated-Variable :
+        (Perpect)  %25 = add nsw i32 %24, 1
+        (Perpect)  %24 = load i32, i32* %5, align 4, !tbaa !3
+        (Perpect)  %5 = alloca i32, align 4
+        (Perpect)  %14 = icmp sge i32 %12, %13
+        (Perpect)  %12 = load i32, i32* %5, align 4, !tbaa !3
+        (Perpect)  %13 = load i32, i32* %4, align 4, !tbaa !3
+        (Perpect)  %4 = alloca i32, align 4
+        (Perpect)  %50 = add nsw i32 %49, 1
+        (Perpect)  %49 = load i32, i32* %7, align 4, !tbaa !3
+        (Perpect)  %7 = alloca i32, align 4
+        (Perpect)  %41 = icmp slt i32 %35, %40
+        (Perpect)  %35 = load i32, i32* %34, align 4, !tbaa !3
+        (Perpect)  %34 = getelementptr inbounds i32, i32* %31, i64 %33
+        (Perpect)  %31 = load i32*, i32** %6, align 8, !tbaa !7
+        (Perpect)  %6 = alloca i32*, align 8
+        (Perpect)  %29 = icmp sle i32 %27, %28
+        (Perpect)  %27 = load i32, i32* %7, align 4, !tbaa !3
+        (Perpect)  %28 = load i32, i32* %4, align 4, !tbaa !3
+        (Perpect)  %33 = sext i32 %32 to i64
+        (Perpect)  %32 = load i32, i32* %7, align 4, !tbaa !3
+        (Perpect)  %40 = load i32, i32* %39, align 4, !tbaa !3
+        (Perpect)  %39 = getelementptr inbounds i32, i32* %36, i64 %38
+        (Perpect)  %36 = load i32*, i32** %6, align 8, !tbaa !7
+        (Perpect)  %38 = sext i32 %37 to i64
+        (Perpect)  %37 = load i32, i32* %5, align 4, !tbaa !3
+
+SELECTED:   %32 = load i32, i32* %7, align 4, !tbaa !3

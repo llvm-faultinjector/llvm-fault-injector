@@ -1,0 +1,20 @@
+Function - _fft
+    Annotated Variable List :
+        - Annotated : (message: __marking_faultinject_intptr)
+
+    Annotated-Variable :
+        (Perpect)  %105 = add nsw i32 %104, %103
+        (Perpect)  %104 = load i32, i32* %9, align 4, !tbaa !3
+        (Perpect)  %9 = alloca i32, align 4
+        (Perpect)  %103 = mul nsw i32 2, %102
+        (Perpect)  %102 = load i32, i32* %5, align 4, !tbaa !3
+        (Perpect)  %5 = alloca i32, align 4
+        (Perpect)  %43 = icmp slt i32 %41, %42
+        (Perpect)  %41 = load i32, i32* %9, align 4, !tbaa !3
+        (Perpect)  %21 = icmp slt i32 %19, %20
+        (Perpect)  %19 = load i32, i32* %5, align 4, !tbaa !3
+        (Perpect)  %20 = load i32, i32* %6, align 4, !tbaa !3
+        (Perpect)  %6 = alloca i32, align 4
+        (Perpect)  %42 = load i32, i32* %6, align 4, !tbaa !3
+
+SELECTED:   %41 = load i32, i32* %9, align 4, !tbaa !3
