@@ -31,6 +31,9 @@ add_llvm_tool(opt
   NewPMDriver.cpp
   PassPrinters.cpp
   PrintSCC.cpp
+  FaultInjector.cpp
+  InjectFaultProc.cpp
+  DeleteInjectFunc.cpp
   opt.cpp
 
   DEPENDS
