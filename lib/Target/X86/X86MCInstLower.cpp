@@ -44,7 +44,9 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCSymbolELF.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Transforms/Utils/Dependency.h"
+#include <string>
+#include <map>
+#include "llvm/Transforms/Utils/InjectFault.h"
 
 using namespace llvm;
 
@@ -1585,16 +1587,69 @@ void X86AsmPrinter::EmitSEHInstruction(const MachineInstr *MI) {
   }
 }
 
+int once = 0;
+static void trace_register(const MachineInstr *MI) {
+  if (once != 0)
+    return;
+  once = 1;
+
+  if (MI->getNumOperands() == 0 || !MI->getOperand(0).isReg())
+    return;
+
+  std::set<unsigned> dep_regs;
+  std::set<const MachineOperand *> result;
+
+  for (int i = 1, e = MI->getNumOperands(); i < e; i++)
+    if (MI->getOperand(i).isReg() && !MI->getOperand(i).isDead()) {
+      dep_regs.insert(MI->getOperand(i).getReg());
+      result.insert(&MI->getOperand(i));
+    }
+
+  if (dep_regs.size() == 0)
+    return;
+
+  MI = MI->getPrevNode();
+  for (; MI != nullptr; MI = MI->getPrevNode()) {
+    if (MI->getNumOperands() == 0 || !MI->getOperand(0).isReg())
+      continue;
+    if (dep_regs.find(MI->getOperand(0).getReg()) == dep_regs.end())
+      continue;
+
+    dep_regs.erase(MI->getOperand(0).getReg());
+
+    for (int i = 1, e = MI->getNumOperands(); i < e; i++)
+      if (MI->getOperand(i).isReg() && !MI->getOperand(i).isDead()) {
+        dep_regs.insert(MI->getOperand(i).getReg());
+        result.insert(&MI->getOperand(i));
+      }
+  }
+
+  for (auto reg : result) {
+    reg->print(errs());
+    errs() << '\n';
+  }
+}
+
 void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
   X86MCInstLower MCInstLowering(*MF, *this);
   const X86RegisterInfo *RI =
       MF->getSubtarget<X86Subtarget>().getRegisterInfo();
 
   if (MI->getDebugLoc()) {
-    DependencyInstrInfoManager *mgr = getInfoManager(MI->getDebugLoc()->getLine()); 
-    mgr->doFolding();
-    for (auto DI : *mgr)
-      OutStreamer->AddComment(DI->getInfo());
+    //DependencyInstrInfoManager *mgr = getInfoManager(MI->getDebugLoc()->getLine()); 
+    //mgr->doFolding();
+
+    //for (auto DI : *mgr)
+    //errs() << MI << "\r\n";
+    OutStreamer->AddComment(getInformation(MI->getDebugLoc().getLine()));
+    
+    /*errs() << *MI << '\n';
+    for (int i = 0; i < MI->getNumOperands(); i++) {
+      errs() << MI->getOperand(i) << '\n';
+      errs() << (int)MI->getOperand(i).getType() << '\n';
+      errs() << MI->getOperand(i).getReg() << '\n';
+    }*/
+    trace_register(MI);
   }
 
   // Add a comment about EVEX-2-VEX compression for AVX-512 instrs that
