@@ -52,6 +52,7 @@ X86AsmPrinter::X86AsmPrinter(TargetMachine &TM,
 /// runOnMachineFunction - Emit the function body.
 ///
 bool X86AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
+  MF.print(errs());
   Subtarget = &MF.getSubtarget<X86Subtarget>();
 
   SMShadowTracker.startFunction(MF);
