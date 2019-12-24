@@ -1587,22 +1587,18 @@ void X86AsmPrinter::EmitSEHInstruction(const MachineInstr *MI) {
   }
 }
 
-int once = 0;
 static void trace_register(const MachineInstr *MI) {
-  if (once != 0)
-    return;
-  once = 1;
-
   if (MI->getNumOperands() == 0 || !MI->getOperand(0).isReg())
     return;
 
+  auto TRI = MI->getParent()->getParent()->getRegInfo().getTargetRegisterInfo();
   std::set<unsigned> dep_regs;
-  std::set<const MachineOperand *> result;
+  std::set<unsigned> result;
 
   for (int i = 1, e = MI->getNumOperands(); i < e; i++)
     if (MI->getOperand(i).isReg() && !MI->getOperand(i).isDead()) {
       dep_regs.insert(MI->getOperand(i).getReg());
-      result.insert(&MI->getOperand(i));
+      result.insert(MI->getOperand(i).getReg());
     }
 
   if (dep_regs.size() == 0)
@@ -1610,24 +1606,78 @@ static void trace_register(const MachineInstr *MI) {
 
   MI = MI->getPrevNode();
   for (; MI != nullptr; MI = MI->getPrevNode()) {
-    if (MI->getNumOperands() == 0 || !MI->getOperand(0).isReg())
-      continue;
-    if (dep_regs.find(MI->getOperand(0).getReg()) == dep_regs.end())
-      continue;
-
-    dep_regs.erase(MI->getOperand(0).getReg());
-
-    for (int i = 1, e = MI->getNumOperands(); i < e; i++)
-      if (MI->getOperand(i).isReg() && !MI->getOperand(i).isDead()) {
-        dep_regs.insert(MI->getOperand(i).getReg());
-        result.insert(&MI->getOperand(i));
+    unsigned StartOp = 0;
+    unsigned e = MI->getNumOperands();
+    unsigned dep = 0;
+    
+    while (StartOp < e) {
+      auto MO = MI->getOperand(StartOp);
+      if (!MO.isReg() || !MO.isDef() || MO.isImplicit())
+        break;
+      if (dep_regs.count(MO.getReg())) {
+        dep++;
+        dep_regs.erase(MO.getReg());
       }
+      ++StartOp;
+    }
+
+    if (dep == 0) {
+      if (!MI->isCall())
+        continue;
+    }
+
+    for (int i = StartOp, e = MI->getNumOperands(); i < e; i++) {
+      auto MO = MI->getOperand(i);
+      //errs() << "-- " << MO << '\n';
+      if (MO.isReg() && !MO.isDead()) {
+        //errs() << "---- " << MO << '\n';
+        dep_regs.insert(MO.getReg());
+        result.insert(MO.getReg());
+      } else if (MO.isRegMask()) {
+        //errs() << "---* " << MO << '\n';
+        auto LRI = dep_regs.begin();
+        while (LRI != dep_regs.end()) {
+          if (MO.clobbersPhysReg(*LRI))
+            LRI = dep_regs.erase(LRI);
+          else
+            ++LRI;
+        }
+      }
+    }
   }
 
+  errs() << "Available Registers: ";
   for (auto reg : result) {
-    reg->print(errs());
-    errs() << '\n';
+    if (!TargetRegisterInfo::isPhysicalRegister(reg))
+      continue;
+    errs() << printReg(reg, TRI) << ' ';
+    //reg->print(errs());
   }
+  errs() << '\n';
+}
+
+#include "llvm/CodeGen/LivePhysRegs.h"
+
+void trace_register2(const MachineInstr *MI) {
+  auto bb_entry = MI->getParent()->begin();
+
+  errs() << "Target Instruction: " << *MI << '\n';
+  errs() << *MI->getParent() << '\n';
+  errs() << "i--------------------------------\n";
+
+  LivePhysRegs lpr(*MI->getParent()->getParent()->getRegInfo().getTargetRegisterInfo());
+    lpr.print(errs());
+  //lpr.addLiveOuts(*MI->getParent());
+  for (auto iter = MI; ; iter = iter->getPrevNode()) {
+    lpr.stepBackward(*MI);
+    lpr.print(errs());
+    if (iter == bb_entry)
+      break;
+  }
+  /*for (auto iter = MI->getParent()->rbegin(); iter != MI->getParent()->rend(); iter++) {
+    lpr.print(errs());
+    lpr.stepBackward(*MI);
+  }*/
 }
 
 void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
@@ -1649,7 +1699,13 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
       errs() << (int)MI->getOperand(i).getType() << '\n';
       errs() << MI->getOperand(i).getReg() << '\n';
     }*/
+    errs() << "s-----------------------------------------------------\n";
+    errs() << "Target Instruction: " << *MI << '\n';
+    errs() << *MI->getParent() << '\n';
+
     trace_register(MI);
+    errs() << "e-----------------------------------------------------\n";
+    //trace_register2(MI);
   }
 
   // Add a comment about EVEX-2-VEX compression for AVX-512 instrs that
